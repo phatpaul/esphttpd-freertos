@@ -1,21 +1,36 @@
 <html>
 <head><title>Upgrade firmware</title>
-<link rel="stylesheet" type="text/css" href="../wifi/style.css">
-<script type="text/javascript" src="../wifi/140medley.min.js"></script>
+<link rel="stylesheet" type="text/css" href="../style.css">
+<script type="text/javascript" src="../140medley.min.js"></script>
 <script type="text/javascript">
 
 var xhr=j();
+var valid_apps = {};
 
-function doCommonXHR(donecallback, responsecallback) {
+function openAjaxSpinner() {
+    $("#spinner").style.display = 'block';
+}
+
+function closeAjaxSpinner() {
+    $("#spinner").style.display = 'none';
+}
+
+function doCommonXHR(donecallback, successcallback) {
 	xhr.onreadystatechange=function() {
         if (xhr.readyState==4) {
             if (xhr.status>=200 && xhr.status<=400) {
                 var json_response = JSON.parse(xhr.responseText);
-                if (responsecallback && typeof(responsecallback) === "function") {responsecallback(json_response);}
+                if (json_response.success == false) {
+                    $("#remark").innerHTML="<strong style=\"color: red;\">Error: "+xhr.responseText+"</strong>";
+                    closeAjaxSpinner();
+                } else {
+                    if (successcallback && typeof(successcallback) === "function") {successcallback(json_response);}
+                }
             }
             else
             {
                 $("#remark").innerHTML="<strong style=\"color: red;\">Error!  Check connection.  HTTP status: " + xhr.status + "</strong>";
+                closeAjaxSpinner();
             }
             if (donecallback && typeof(donecallback) === "function") {donecallback();}
         }
@@ -24,13 +39,11 @@ function doCommonXHR(donecallback, responsecallback) {
 
 function doReboot(callback) {
 	$("#remark").innerHTML="Sending reboot command...";
+    openAjaxSpinner();
 	xhr.open("GET", "./reboot");
     doCommonXHR(callback, function(json_response) {
-        if (json_response.success == false) {
-            $("#remark").innerHTML="<strong style=\"color: red;\">Error: "+xhr.responseText+"</strong>";
-        } else {
-            $("#remark").innerHTML="Command sent.  Rebooting!...";
-        }
+        $("#remark").innerHTML="Command sent.  Rebooting!...";
+        // todo: use Ajax to test if connection restored before reloading page...
         window.setTimeout(function() {
             location.reload(true);
         }, 4000);
@@ -39,17 +52,34 @@ function doReboot(callback) {
 	return false;
 }
 
+function doVerify(partition, callback) {
+	$("#remark").innerHTML="Verifying App in partition: " + partition + "...";
+    openAjaxSpinner();
+	xhr.open("GET", "./flashinfo.json?verify=1" + ((partition)?("&partition=" + partition):("")));
+    doCommonXHR(callback, function(flinfo) {
+        for(var i=0;i<flinfo.app.length;i++)
+        {
+            if (typeof flinfo.app[i].valid !== "undefined") {
+                valid_apps[flinfo.app[i].name] = flinfo.app[i].valid;
+            }
+        }
+        $("#remark").innerHTML="Finished verify.  " + partition + " is <b>" + ((valid_apps[partition])?("Valid"):("Not valid")) + "</b>";
+        doInfo(function() {
+            closeAjaxSpinner();
+        });
+    });
+	xhr.send();
+	return false;
+}
+
 function doSetBoot(partition, callback) {
 	$("#remark").innerHTML="Setting Boot Flag to partition: " + partition + "...";
+    openAjaxSpinner();
 	xhr.open("GET", "./setboot" + ((partition)?("?partition=" + partition):("")));
     doCommonXHR(callback, function(json_response) {
         doInfo(function() {
-            setProgress(1);
-            if (json_response.success == false) {
-                $("#remark").innerHTML="<strong style=\"color: red;\">Error: "+xhr.responseText+"</strong>";
-            } else {
-                $("#remark").innerHTML="Finished setting Boot Flag to " + partition + ".  <b>Now press Reboot!</b>";
-            }
+            $("#remark").innerHTML="Finished setting Boot Flag to " + partition + ".  <b>Now press Reboot!</b>";
+            closeAjaxSpinner();
         });
     });
 	xhr.send();
@@ -58,46 +88,32 @@ function doSetBoot(partition, callback) {
 
 function doEraseFlash(partition, callback) {
 	$("#remark").innerHTML="Erasing data in: " + partition + "...";
+    openAjaxSpinner();
 	xhr.open("GET", "./erase" + ((partition)?("?partition=" + partition):("")));
     doCommonXHR(callback, function(json_response) {
         doInfo(function() {
-            setProgress(1);
-            if (json_response.success == false) {
-                $("#remark").innerHTML="<strong style=\"color: red;\">Error: "+xhr.responseText+"</strong>";
-            } else {
-                $("#remark").innerHTML="Finished erasing data in: " + partition + ".  <b>Must reboot to reformat it!</b>";
-            }
+            $("#remark").innerHTML="Finished erasing data in: " + partition + ".  <b>Must reboot to reformat it!</b>";
+            closeAjaxSpinner();
         });
     });
 	xhr.send();
 	return false;
 }
 
-function setProgress(amt) {
-	$("#progressbarinner").style.width=String(amt*200)+"px";
-}
-
 function doUpgrade(partition, callback) {
 	var f=$("#file").files[0];
-	if (typeof f=='undefined') {
+	if (typeof f === 'undefined') {
 		$("#remark").innerHTML="<strong style=\"color: red;\">Can't read file!  Browse for .bin file.</strong>";
 		return
 	}
-
-	xhr.upload.onprogress=function(e) {
-		setProgress(e.loaded / e.total);
-	}
 	$("#remark").innerHTML="Uploading App to partition: " + partition;
+    openAjaxSpinner();
 	xhr.open("POST", "./upload" + ((partition)?("?partition=" + partition):("")));
     doCommonXHR(callback, function(json_response) {
         doInfo(function() {
-            setProgress(1);
-            if (json_response.success == false) {
-                $("#remark").innerHTML="<strong style=\"color: red;\">Error: "+json_response.message+"</strong>";
-            } else {
-                $("#remark").innerHTML="Upload flash done and Boot Set. <b>Now Reboot!</b>";
-                // doReboot();
-            }
+            $("#remark").innerHTML="Upload flash done and Boot Set. <b>Now Reboot!</b>";   
+            closeAjaxSpinner();
+            // doReboot();
         });
     });
     xhr.send(f);
@@ -113,13 +129,16 @@ function doInfo(callback) {
         var tablerows = "";
         for(var i=0;i<flinfo.app.length;i++)
         {
-             tablerows += "<tr>"
+            if (typeof flinfo.app[i].valid !== "undefined") {
+                valid_apps[flinfo.app[i].name] = flinfo.app[i].valid;
+            }
+            tablerows += "<tr>"
                          + "<td>" + flinfo.app[i].name + "</td>"
                          + "<td>" + humanFileSize(flinfo.app[i].size,0) + "</td>"
                          + "<td>" + flinfo.app[i].version + "</td>"
-                         + "<td>" + ((flinfo.app[i].valid)?("&#10004;"):("")) + "</td>"
+                         + "<td>" + ((valid_apps[flinfo.app[i].name])?("&#10004;"):(('<input type="submit" value="Verify ' + flinfo.app[i].name + '!" onclick="doVerify( \'' + flinfo.app[i].name + '\')" />'))) + "</td>"
                          + "<td>" + ((flinfo.app[i].running)?("&#10004;"):("")) + "</td>"
-                         + '<td>' + ((flinfo.app[i].bootset)?("&#10004;"):((flinfo.app[i].valid)?('<input type="submit" value="Set Boot ' + flinfo.app[i].name + '!" onclick="doSetBoot( \'' + flinfo.app[i].name + '\')" />'):(''))) + '</td>'
+                         + '<td>' + ((flinfo.app[i].bootset)?("&#10004;"):('<input type="submit" value="Set Boot ' + flinfo.app[i].name + '!" onclick="doSetBoot( \'' + flinfo.app[i].name + '\')" />')) + '</td>'
                          + '<td>' + (((flinfo.app[i].ota) && !(flinfo.app[i].running))?('<input type="submit" value="Upload to ' + flinfo.app[i].name + '!" onclick="doUpgrade( \'' + flinfo.app[i].name + '\')" />'):('')) + '</td>'
                          + "</tr>";
         };
@@ -127,7 +146,7 @@ function doInfo(callback) {
         tablerows = "";
         for(var i=0;i<flinfo.data.length;i++)
         {
-             tablerows += "<tr>"
+            tablerows += "<tr>"
                          + "<td>" + flinfo.data[i].name + "</td>"
                          + "<td>" + humanFileSize(flinfo.data[i].size,0) + "</td>"
                          + "<td>" + dataformats[flinfo.data[i].format] + "</td>"
@@ -141,17 +160,30 @@ function doInfo(callback) {
 }
 
 window.onload=function(e) {
-    setProgress(0);
-	doInfo(function(){$("#remark").innerHTML="Ready.";});
+    openAjaxSpinner();
+	doInfo(function(){
+        closeAjaxSpinner();
+        $("#remark").innerHTML="Ready.";
+    }
+    );
 }
 
 </script>
+<style>
+table, td, th {
+    border: 1px solid black;
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+</style>
 </head>
 <body>
 <div id="main">
 <h1>Upgrade Firmware</h1>
 
-<p><table style="width: 100%">
+<p><table>
 <caption><b>App Partitions</b></caption>
      <thead>
           <tr>
@@ -168,7 +200,7 @@ window.onload=function(e) {
      </tbody>
 </table></p>
 
-<p><table style="width: 100%">
+<p><table>
 <caption><b>Data Partitions</b></caption>
      <thead>
           <tr>
@@ -183,7 +215,7 @@ window.onload=function(e) {
 </table></p>
 <input type="submit" value="Reboot!" onclick="doReboot()" />
 <div><p id="remark">Loading...</p></div>
-<div id="progressbar"><div id="progressbarinner"></div></div>
+<div id="spinner"></div>
 </div>
 </body>
 </html>
