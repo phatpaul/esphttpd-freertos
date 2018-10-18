@@ -1,4 +1,4 @@
-This is an example of how to use [libesphttpd](https://github.com/phatpaul/libesphttpd) with the Espressif FreeRTOS SDK [ESP-IDF](https://github.com/espressif/esp-idf).
+This is an example of how to use [libesphttpd](https://github.com/chmorgan/libesphttpd) with the Espressif FreeRTOS SDK [ESP-IDF](https://github.com/espressif/esp-idf).
 
 # ESP32
 

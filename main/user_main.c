@@ -172,9 +172,9 @@ HttpdBuiltInUrl builtInUrls[]={
 	ROUTE_WS("/websocket/ws.cgi", myWebsocketConnect),
 	ROUTE_WS("/websocket/echo.cgi", myEchoWebsocketConnect),
 
-	ROUTE_REDIRECT("/test", "/test/index.html"),
-	ROUTE_REDIRECT("/test", "/test/index.html"),
-	ROUTE_CGI("/test/test.cgi", cgiTestbed),
+	ROUTE_REDIRECT("/httptest", "/httptest/index.html"),
+	ROUTE_REDIRECT("/httptest", "/httptest/index.html"),
+	ROUTE_CGI("/httptest/test.cgi", cgiTestbed),
 
 	ROUTE_FILESYSTEM(),
 
