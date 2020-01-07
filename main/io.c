@@ -68,14 +68,18 @@ static void blink_stateMachine(int init, uint32_t delta_time, int num1, int num2
 #define BLINK_tSTART (500)  // beginning off-time
 #define BLINK_tNh    (250)  // num1 blink on-time
 #define BLINK_tNl    (250)  // num1 blink off-time
-#define BLINK_tMID   (0 + BLINK_tNl)  // middle off-time
+#define BLINK_tMID (0)		// middle off-time
 #define BLINK_tN2h  (350)  // num2 blink on-time
 #define BLINK_tN2l  (150)  // num2 blink off-time
-#define BLINK_tEND   (500 + BLINK_tN2l)  // End off-time
+#define BLINK_tEND (500)	// End off-time
 	static int32_t t = 0;    // local timer
 	static uint8_t myN = 0;  // local counter
 	t += delta_time;
-	if (init == SM_INIT) blink_state = BLINK_STATE_INIT;
+	if (init == SM_INIT)
+	{
+		blink_state = BLINK_STATE_INIT;
+		return; // don't run the state-machine on init.
+	}
 
 	switch (blink_state){
 	case BLINK_STATE_INIT:
@@ -85,12 +89,19 @@ static void blink_stateMachine(int init, uint32_t delta_time, int num1, int num2
 		t = 0;
 		break;
 	case BLINK_STATE_PAUSE_START:
-		if (num1 == 0) blink_state = BLINK_STATE_PAUSE_MID;
-		else if (t >= BLINK_tSTART) {
+		if (t >= BLINK_tSTART)
+		{
 			t -= BLINK_tSTART;
+			if (num1 == 0)
+			{
+				blink_state = BLINK_STATE_PAUSE_MID;
+			}
+			else
+			{
 			blink_state = BLINK_STATE_N1_BLINK_ON;
 			ioLed(LED_WIFI, 1);  // Turn ON LED1
 			myN = 0;
+		}
 		}
 		break;
 	case BLINK_STATE_N1_BLINK_ON:
@@ -99,24 +110,28 @@ static void blink_stateMachine(int init, uint32_t delta_time, int num1, int num2
 			blink_state = BLINK_STATE_N1_BLINK_OFF;
 			ioLed(LED_WIFI, 0); // Turn OFF LED1
 			myN += 1;
-			//ESP_LOGI(TAG, "BLINK_STATE_N1_BLINK_OFF: myN: %i", myN);
 		}
 		break;
 	case BLINK_STATE_N1_BLINK_OFF:
-		if (myN >= num1) {
+		if (myN >= num1)
+		{
+			t -= BLINK_tNl; // still want to delay off time
 			blink_state = BLINK_STATE_PAUSE_MID;
-			//LED_pattern_init(0, palette[C_OFF]); // Turn OFF
-			//t = 0;
 		}
-		else if (t >= BLINK_tNl) {
+		else if (t >= BLINK_tNl)
+		{
 			t -= BLINK_tNl;
 			blink_state = BLINK_STATE_N1_BLINK_ON;
 			ioLed(LED_WIFI, 1);  // Turn ON LED1
 		}
 		break;
 	case BLINK_STATE_PAUSE_MID:
-		if (num2 == 0) blink_state = BLINK_STATE_PAUSE_END;
-		if (t >= BLINK_tMID) {
+		if (num2 == 0)
+		{
+			blink_state = BLINK_STATE_PAUSE_END;
+		}
+		else if (t >= BLINK_tMID)
+		{
 			t -= BLINK_tMID;
 			blink_state = BLINK_STATE_N2_BLINK_ON;
 			ioLed(LED_BLE, 1); // Turn ON LED2
@@ -129,20 +144,18 @@ static void blink_stateMachine(int init, uint32_t delta_time, int num1, int num2
 			blink_state = BLINK_STATE_N2_BLINK_OFF;
 			ioLed(LED_BLE, 0); // Turn OFF LED2
 			myN += 1;
-			//ESP_LOGI(TAG, "BLINK_STATE_N2_BLINK_OFF: myN: %i", myN);
 		}
 		break;
 	case BLINK_STATE_N2_BLINK_OFF:
-		if (myN >= num2){
+		if (myN >= num2)
+		{
+			t -= BLINK_tN2l; // still want to delay off time
 			blink_state = BLINK_STATE_PAUSE_END;
-			//LED_pattern_init(0, palette[C_OFF]); // Turn OFF
-			//t = 0;
 		}
 		else if (t >= BLINK_tN2l){
 			t -= BLINK_tN2l;
 			blink_state = BLINK_STATE_N2_BLINK_ON;
 			ioLed(LED_BLE, 1); // Turn ON LED2
-
 		}
 		break;
 	case BLINK_STATE_PAUSE_END:
