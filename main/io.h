@@ -18,7 +18,7 @@ void set_status_ind_ble(enum BLE_state_e new_state);
 
 enum WIFI_state_e {
 	WIFI_STATE_OFF = 0,  // either off or set to STA but not connected
-	WIFI_STATE_AP = 1,   // AP enabled but no clients connected
+	WIFI_STATE_IDLE = 1,   // WiFi enabled but no clients connected
 	WIFI_STATE_CONN = 2, // WiFi connected to 1+ peer either as AP or STA
 	WIFI_STATE_FAIL,
 	WIFI_STATE_NUM_STATES
