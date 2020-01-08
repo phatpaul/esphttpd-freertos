@@ -464,6 +464,7 @@ void user_init(void) {
 	{
 		// NVS partition was truncated and needs to be erased
 		// Retry nvs_flash_init
+		ESP_LOGW(TAG, "NVS invalid, reformatting... ");
 		ESP_ERROR_CHECK(nvs_flash_erase());
 		err = nvs_flash_init();
 	}
@@ -512,14 +513,14 @@ void user_init(void) {
 	xTaskCreate(websocketBcast, "wsbcast", 3000, NULL, 3, NULL);
 	
 
-#ifdef ETHERNET_ENABLE
-	init_ethernet();
-#endif
+
 
 	ESP_ERROR_CHECK(initCgiWifi()); // Initialise wifi configuration CGI
 
 	ESP_ERROR_CHECK(esp_event_loop_init(app_event_handler, NULL));
-
+#ifdef ETHERNET_ENABLE
+	init_ethernet(); // must happen after esp_event_loop_init
+#endif
 	init_wifi(!net_configured); // Start Wifi, restore factory wifi settings if not initialized
 
 	if (!net_configured)
