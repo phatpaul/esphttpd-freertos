@@ -57,6 +57,11 @@ nvs_handle my_nvs_handle;
 #include "esp_event.h"
 #include "tcpip_adapter.h"
 
+#if defined CONFIG_EXAMPLE_USE_ETHERNET && CONFIG_EXAMPLE_USE_ETHERNET
+#define ETHERNET_ENABLE 1
+#include "ethernet_init.h"
+#endif
+
 char my_hostname[16] = "esphttpd";
 
 /* The examples use simple WiFi configuration that you can set via
@@ -332,6 +337,9 @@ static esp_err_t app_event_handler(void *ctx, system_event_t *event)
 		default:
 			break;
 	}
+#ifdef ETHERNET_ENABLE
+	ethernet_handle_system_event(ctx, event);
+#endif
 
 	/* Forward event to to the WiFi CGI module */
 	cgiWifiEventCb(event);
@@ -344,13 +352,13 @@ void init_wifi(bool factory_defaults)
 	{
 	wifi_mode_t old_mode;
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+	ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
 
 	// Try to get WiFi configuration from NVS?
 #if defined(CONFIG_STORE_WIFI_TO_NVS)
 	ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_FLASH)); // WIFI_STORAGE_FLASH or WIFI_STORAGE_RAM
 #else														   // don't save WiFi config to NVS
-	ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+	ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
 #endif
 	ESP_ERROR_CHECK(esp_wifi_get_mode(&old_mode));
 
@@ -405,7 +413,7 @@ void init_wifi(bool factory_defaults)
 			factory_ap_config.ap.ssid_hidden = 0;
 			factory_ap_config.ap.max_connection = 4;
 			factory_ap_config.ap.beacon_interval = 100;
-		}
+	}
 		wifi_config_t ap_stored_config;
 		ESP_ERROR_CHECK(esp_wifi_get_config(ESP_IF_WIFI_AP, &ap_stored_config));
 
@@ -415,7 +423,7 @@ void init_wifi(bool factory_defaults)
 			// load factory default STA config
 			ESP_LOGI(TAG, "Using factory-default WiFi AP configuration, ssid: %s", factory_ap_config.ap.ssid);
 			ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &factory_ap_config));
-		}
+	}
 		else if (strlen((char *)ap_stored_config.ap.ssid) != 0)
 		{
 			ESP_LOGI(TAG, "Using WiFi AP configuration from NVS, ssid: %s", ap_stored_config.ap.ssid);
@@ -506,6 +514,10 @@ void user_init(void) {
 	ESP_ERROR_CHECK(initCgiWifi()); // Initialise wifi configuration CGI
 
 	ESP_ERROR_CHECK(esp_event_loop_init(app_event_handler, NULL));
+	
+#ifdef ETHERNET_ENABLE
+	init_ethernet();
+#endif
 
 	init_wifi(!net_configured); // Start Wifi, restore factory wifi settings if not initialized
 
