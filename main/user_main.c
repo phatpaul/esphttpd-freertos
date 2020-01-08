@@ -50,6 +50,10 @@ the server, including WiFi connection management capabilities, some IO etc.
 #include "esp_event.h"
 #include "tcpip_adapter.h"
 
+#if defined CONFIG_EXAMPLE_USE_ETHERNET && CONFIG_EXAMPLE_USE_ETHERNET
+#define ETHERNET_ENABLE 1
+#include "ethernet_init.h"
+#endif
 
 char my_hostname[16] = "esphttpd";
 
@@ -290,6 +294,9 @@ static esp_err_t app_event_handler(void *ctx, system_event_t *event)
 		default:
 			break;
 	}
+#ifdef ETHERNET_ENABLE
+	ethernet_handle_system_event(ctx, event);
+#endif
 
 	/* Forward event to to the WiFi CGI module */
 	cgiWifiEventCb(event);
@@ -386,6 +393,11 @@ void user_init(void) {
 	init_wifi(true); // Supply false for STA mode
 
 	xTaskCreate(websocketBcast, "wsbcast", 3000, NULL, 3, NULL);
+	
+
+#ifdef ETHERNET_ENABLE
+	init_ethernet();
+#endif
 
 	printf("\nReady\n");
 }
