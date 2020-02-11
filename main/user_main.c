@@ -159,6 +159,18 @@ CgiUploadFlashDef uploadParams={
 };
 
 
+static void customHeaders_cacheForever(HttpdConnData *connData)
+{
+	httpdHeader(connData, "Cache-Control", "max-age=365000000, public, immutable");
+	httpdHeader(connData, "Content-Type", httpdGetMimetype(connData->url));
+	ESP_LOGV(TAG, "customHeaders_cacheForever");
+}
+
+HttpdCgiExArg CgiOptionsEspfsStatic = {
+    .headerCb = &customHeaders_cacheForever,
+	.basepath = "/static/"
+};
+
 /*
 This is the main url->function dispatching data struct.
 In short, it's a struct with various URLs plus their handlers. The handlers can
@@ -206,6 +218,9 @@ HttpdBuiltInUrl builtInUrls[] = {
 	ROUTE_REDIRECT("/httptest", "/httptest/index.html"),
 	ROUTE_REDIRECT("/httptest/", "/httptest/index.html"),
 	ROUTE_CGI("/httptest/test.cgi", cgiTestbed),
+
+	// Files in /static dir are assumed to never change, so send headers to encourage browser to cache forever.
+	ROUTE_FILE_EX("/static/*", &CgiOptionsEspfsStatic),
 
 	ROUTE_FILESYSTEM(),
 
