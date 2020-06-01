@@ -17,11 +17,11 @@ the server, including WiFi connection management capabilities, some IO etc.
 #include "libesphttpd/httpd.h"
 #include "io.h"
 
-#ifdef CONFIG_ESPHTTPD_USE_ESPFS
+#ifdef CONFIG_ESPFS_PRESENT
 #include "espfs.h"
 #include "espfs_image.h"
 #include "libesphttpd/httpd-espfs.h"
-#endif // CONFIG_ESPHTTPD_USE_ESPFS
+#endif // CONFIG_ESPFS_PRESENT
 
 #include "cgi.h"
 #include "libesphttpd/cgiwifi.h"
@@ -510,13 +510,13 @@ void user_init(void) {
 		}
 	}
 
-#ifdef CONFIG_ESPHTTPD_USE_ESPFS
+#ifdef CONFIG_ESPFS_PRESENT
 	EspFsConfig espfs_conf = {
 		.memAddr = espfs_image_bin,
 	};
 	EspFs* fs = espFsInit(&espfs_conf);
     httpdRegisterEspfs(fs);
-#endif // CONFIG_ESPHTTPD_USE_ESPFS
+#endif // CONFIG_ESPFS_PRESENT
 
 	tcpip_adapter_init();
 	httpdFreertosInit(&httpdFreertosInstance,
